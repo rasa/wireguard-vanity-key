@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
@@ -29,7 +30,7 @@ func main() {
 		// 00000003
 		return p[0] == 0xdb && p[1] == 0x4d && p[2] == 0xb9
 	}
-	s, p, n := findPublicKey(check)
+	s, p, n := findPublicKey(context.TODO(), check)
 
 	fmt.Printf("private                                      public                                       attempts\n")
 	fmt.Printf("%s %s %d\n",
@@ -38,7 +39,7 @@ func main() {
 		n)
 }
 
-func findPublicKey(check func(p []byte) bool) (*edwards25519.Scalar, *edwards25519.Point, int) {
+func findPublicKey(ctx context.Context, check func(p []byte) bool) (*edwards25519.Scalar, *edwards25519.Point, int) {
 	// set s to a randomly-selected scalar, clamped as usual
 	// set scalar_offset to 8 (i.e. the Ed25519 group's cofactor)
 	// set p to scalarmult(s, BASEPOINT)
@@ -62,6 +63,10 @@ func findPublicKey(check func(p []byte) bool) (*edwards25519.Scalar, *edwards255
 
 	i := 0
 	for ; !check(p.BytesMontgomery()); i++ {
+		if i%(1<<16) == 0 && ctx.Err() != nil {
+			return nil, nil, -1
+		}
+
 		s.Add(s, scalarOffset)
 		p.Add(p, pointOffset)
 	}

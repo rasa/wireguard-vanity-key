@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/ecdh"
 	"crypto/rand"
 	"testing"
@@ -15,7 +16,8 @@ func BenchmarkGenerateKey(b *testing.B) {
 
 func BenchmarkFindPublicKey(b *testing.B) {
 	i := b.N
-	findPublicKey(func(p []byte) bool {
+
+	findPublicKey(context.Background(), func(p []byte) bool {
 		_ = p[0] + p[1] + p[2]
 		i--
 		return i == 0
