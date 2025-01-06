@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/binary"
+	"flag"
 	"fmt"
 	"io"
 	"math"
@@ -31,10 +32,13 @@ var (
 func main() {
 	start := time.Now()
 
+	prefix := flag.String("prefix", "AY/", "prefix of base64-encoded public key")
+	flag.Parse()
+
 	s, p := newPair()
 
 	test := func(p *edwards25519.Point) bool {
-		return hasBase64Prefix(p, []byte("////"))
+		return hasBase64Prefix(p, []byte(*prefix))
 	}
 	p, n, attempts := findPointParallel(context.Background(), runtime.NumCPU(), p, test)
 	s = adjustScalar(s, n)
@@ -134,7 +138,7 @@ func scalarToKeyBytes(s *edwards25519.Scalar) []byte {
 	// Solve (lowBits + k*5) % 8 == 0 for k:
 	// k := [8]byte{0, 0, 6, 0, 4, 7, 0, 5}[lowBits]
 	k := [8]byte{0, 3, 6, 1, 4, 7, 2, 5}[lowBits]
-	if k < 4 {
+	if k < 4 { // TODO: prove k is one of 4, 5, 6, 7
 		panic("invalid scalar first byte (lowBits)")
 	}
 
