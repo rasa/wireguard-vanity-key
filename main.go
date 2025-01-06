@@ -25,12 +25,13 @@ var (
 )
 
 func main() {
-	check := func(p []byte) bool {
+	check := func(p *edwards25519.Point) bool {
+		pp := p.BytesMontgomery()
 		// Search for "2025" prefix:
 		// $ echo 2025 | base64 -d | hexdump -C
 		// 00000000  db 4d b9                                          |.M.|
 		// 00000003
-		return p[0] == 0xdb && p[1] == 0x4d && p[2] == 0xb9
+		return pp[0] == 0xdb && pp[1] == 0x4d && pp[2] == 0xb9
 	}
 	s, p, n := findPublicKeyParallel(context.TODO(), runtime.NumCPU(), check)
 
@@ -41,7 +42,7 @@ func main() {
 		n)
 }
 
-func findPublicKeyParallel(ctx context.Context, workers int, check func(p []byte) bool) (*edwards25519.Scalar, *edwards25519.Point, int64) {
+func findPublicKeyParallel(ctx context.Context, workers int, check func(p *edwards25519.Point) bool) (*edwards25519.Scalar, *edwards25519.Point, int64) {
 	var (
 		sr *edwards25519.Scalar
 		pr *edwards25519.Point
@@ -66,7 +67,7 @@ func findPublicKeyParallel(ctx context.Context, workers int, check func(p []byte
 	return sr, pr, nr.Load()
 }
 
-func findPublicKey(ctx context.Context, check func(p []byte) bool) (*edwards25519.Scalar, *edwards25519.Point, int64) {
+func findPublicKey(ctx context.Context, check func(p *edwards25519.Point) bool) (*edwards25519.Scalar, *edwards25519.Point, int64) {
 	// set s to a randomly-selected scalar, clamped as usual
 	// set scalar_offset to 8 (i.e. the Ed25519 group's cofactor)
 	// set p to scalarmult(s, BASEPOINT)
@@ -89,7 +90,7 @@ func findPublicKey(ctx context.Context, check func(p []byte) bool) (*edwards2551
 	p := new(edwards25519.Point).ScalarBaseMult(s)
 
 	var i int64
-	for ; !check(p.BytesMontgomery()); i++ {
+	for ; !check(p); i++ {
 		if i%(1<<16) == 0 && ctx.Err() != nil {
 			return nil, nil, i
 		}

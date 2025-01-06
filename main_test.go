@@ -7,6 +7,8 @@ import (
 	"runtime"
 	"sync/atomic"
 	"testing"
+
+	"filippo.io/edwards25519"
 )
 
 func BenchmarkGenerateKey(b *testing.B) {
@@ -19,10 +21,10 @@ func BenchmarkGenerateKey(b *testing.B) {
 func BenchmarkFindPublicKey(b *testing.B) {
 	i := b.N
 
-	findPublicKey(context.Background(), func(p []byte) bool {
-		_ = p[0] + p[1] + p[2]
+	findPublicKey(context.Background(), func(p *edwards25519.Point) bool {
+		pp := p.BytesMontgomery()
 		i--
-		return i == 0
+		return i == 0 || len(pp) == 0
 	})
 }
 
@@ -30,8 +32,8 @@ func BenchmarkFindPublicKeyParallel(b *testing.B) {
 	var i atomic.Int64
 	i.Store(int64(b.N))
 
-	findPublicKeyParallel(context.Background(), runtime.NumCPU(), func(p []byte) bool {
-		_ = p[0] + p[1] + p[2]
-		return i.Add(-1) <= 0
+	findPublicKeyParallel(context.Background(), runtime.NumCPU(), func(p *edwards25519.Point) bool {
+		pp := p.BytesMontgomery()
+		return i.Add(-1) <= 0 || len(pp) == 0
 	})
 }
