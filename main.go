@@ -12,6 +12,7 @@ import (
 	"math/big"
 	"runtime"
 	"sync/atomic"
+	"time"
 
 	"filippo.io/edwards25519"
 	"golang.org/x/sync/errgroup"
@@ -26,16 +27,18 @@ var (
 )
 
 func main() {
+	start := time.Now()
+
 	check := func(p *edwards25519.Point) bool {
 		return hasBase64Prefix(p, []byte("2025"))
 	}
 	s, p, n := findPublicKeyParallel(context.TODO(), runtime.NumCPU(), check)
 
-	fmt.Printf("private                                      public                                       attempts\n")
-	fmt.Printf("%s %s %d\n",
+	fmt.Printf("%-44s %-44s %-10s %s\n", "private", "public", "attempts", "duration")
+	fmt.Printf("%s %s %-10d %s\n",
 		base64.StdEncoding.EncodeToString(scalarToKeyBytes(s)),
 		base64.StdEncoding.EncodeToString(p.BytesMontgomery()),
-		n)
+		n, time.Now().Sub(start))
 }
 
 func findPublicKeyParallel(ctx context.Context, workers int, check func(p *edwards25519.Point) bool) (*edwards25519.Scalar, *edwards25519.Point, int64) {
