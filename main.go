@@ -62,56 +62,6 @@ func newPair() (*edwards25519.Scalar, *edwards25519.Point) {
 	return s, p
 }
 
-func findPublicKeyParallel(ctx context.Context, workers int, test func(p *edwards25519.Point) bool) (*edwards25519.Scalar, *edwards25519.Point, int64) {
-	var (
-		sr *edwards25519.Scalar
-		pr *edwards25519.Point
-		nr atomic.Int64
-	)
-
-	g, gtx := errgroup.WithContext(ctx)
-	for range workers {
-		g.Go(func() error {
-			s, p, n := findPublicKey(gtx, test)
-
-			nr.Add(int64(n))
-			if s != nil {
-				sr, pr = s, p
-				return fmt.Errorf("found")
-			}
-			return gtx.Err()
-		})
-	}
-	g.Wait()
-
-	return sr, pr, nr.Load()
-}
-
-func findPublicKey(ctx context.Context, test func(p *edwards25519.Point) bool) (*edwards25519.Scalar, *edwards25519.Point, int64) {
-	// set s to a randomly-selected scalar, clamped as usual
-	// set scalar_offset to 8 (i.e. the Ed25519 group's cofactor)
-	// set p to scalarmult(s, BASEPOINT)
-	// set point_offset to scalarmult(scalar_offset, BASEPOINT)
-	//
-	// Then each step of the loop looks like:
-	// If p passes the test, print the result and start over again from initialization
-	// else, set s = s + scalar_offset and p = p + point_offset
-	// repeat
-	s, p := newPair()
-
-	var i int64
-	for ; !test(p); i++ {
-		if i%(1<<16) == 0 && ctx.Err() != nil {
-			return nil, nil, i
-		}
-
-		s.Add(s, scalarOffset)
-		p.Add(p, pointOffset)
-	}
-
-	return s, p, i
-}
-
 func findPointParallel(ctx context.Context, workers int, p0 *edwards25519.Point, test func(p *edwards25519.Point) bool) (*edwards25519.Point, uint64, uint64) {
 	var (
 		pr       *edwards25519.Point
