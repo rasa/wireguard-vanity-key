@@ -9,8 +9,11 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"runtime"
+	"sync/atomic"
 
 	"filippo.io/edwards25519"
+	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -18,8 +21,7 @@ var (
 	smallScalar = scalarFromBytes(decimalToLittleEndianBytes("27742317777372353535851937790883648493")...)
 	// Ed25519 group's cofactor
 	scalarOffset = scalarFromBytes(8)
-
-	pointOffset = new(edwards25519.Point).ScalarBaseMult(scalarOffset)
+	pointOffset  = new(edwards25519.Point).ScalarBaseMult(scalarOffset)
 )
 
 func main() {
@@ -30,7 +32,7 @@ func main() {
 		// 00000003
 		return p[0] == 0xdb && p[1] == 0x4d && p[2] == 0xb9
 	}
-	s, p, n := findPublicKey(context.TODO(), check)
+	s, p, n := findPublicKeyParallel(context.TODO(), runtime.NumCPU(), check)
 
 	fmt.Printf("private                                      public                                       attempts\n")
 	fmt.Printf("%s %s %d\n",
@@ -39,7 +41,32 @@ func main() {
 		n)
 }
 
-func findPublicKey(ctx context.Context, check func(p []byte) bool) (*edwards25519.Scalar, *edwards25519.Point, int) {
+func findPublicKeyParallel(ctx context.Context, workers int, check func(p []byte) bool) (*edwards25519.Scalar, *edwards25519.Point, int64) {
+	var (
+		sr *edwards25519.Scalar
+		pr *edwards25519.Point
+		nr atomic.Int64
+	)
+
+	g, gtx := errgroup.WithContext(ctx)
+	for range workers {
+		g.Go(func() error {
+			s, p, n := findPublicKey(gtx, check)
+
+			nr.Add(int64(n))
+			if s != nil {
+				sr, pr = s, p
+				return fmt.Errorf("found")
+			}
+			return gtx.Err()
+		})
+	}
+	g.Wait()
+
+	return sr, pr, nr.Load()
+}
+
+func findPublicKey(ctx context.Context, check func(p []byte) bool) (*edwards25519.Scalar, *edwards25519.Point, int64) {
 	// set s to a randomly-selected scalar, clamped as usual
 	// set scalar_offset to 8 (i.e. the Ed25519 group's cofactor)
 	// set p to scalarmult(s, BASEPOINT)
@@ -61,10 +88,10 @@ func findPublicKey(ctx context.Context, check func(p []byte) bool) (*edwards2551
 
 	p := new(edwards25519.Point).ScalarBaseMult(s)
 
-	i := 0
+	var i int64
 	for ; !check(p.BytesMontgomery()); i++ {
 		if i%(1<<16) == 0 && ctx.Err() != nil {
-			return nil, nil, -1
+			return nil, nil, i
 		}
 
 		s.Add(s, scalarOffset)
