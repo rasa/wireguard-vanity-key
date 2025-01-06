@@ -22,24 +22,6 @@ var (
 )
 
 func main() {
-	key := make([]byte, 32)
-	if _, err := io.ReadFull(rand.Reader, key); err != nil {
-		panic(err)
-	}
-
-	// priv, _ := ecdh.X25519().NewPrivateKey(key)
-	// pub := priv.PublicKey()
-
-	// fmt.Printf("private                                      public                                       attempts\n")
-	// fmt.Printf("%s %s\n",
-	// 	base64.StdEncoding.EncodeToString(priv.Bytes()),
-	// 	base64.StdEncoding.EncodeToString(pub.Bytes()))
-
-	s0, err := edwards25519.NewScalar().SetBytesWithClamping(key)
-	if err != nil {
-		panic(err)
-	}
-
 	check := func(p []byte) bool {
 		// Search for 2025 prefix:
 		// $ echo 2025 | base64 -d | hexdump -C
@@ -47,29 +29,16 @@ func main() {
 		// 00000003
 		return p[0] == 0xdb && p[1] == 0x4d && p[2] == 0xb9
 	}
-	s, p, n := findPublicKey(s0, check)
+	s, p, n := findPublicKey(check)
 
 	fmt.Printf("private                                      public                                       attempts\n")
 	fmt.Printf("%s %s %d\n",
 		base64.StdEncoding.EncodeToString(scalarToKeyBytes(s)),
 		base64.StdEncoding.EncodeToString(p.BytesMontgomery()),
 		n)
-
-	// p0 := new(edwards25519.Point).ScalarBaseMult(s0)
-
-	// fmt.Printf("%s %s\n",
-	// 	base64.StdEncoding.EncodeToString(scalarToKeyBytes(s0)),
-	// 	base64.StdEncoding.EncodeToString(p0.BytesMontgomery()))
-
-	// s1 := s0.Add(s0, scalarOffset)
-	// p1 := p0.Add(p0, pointOffset)
-
-	// fmt.Printf("%s %s\n",
-	// 	base64.StdEncoding.EncodeToString(scalarToKeyBytes(s1)),
-	// 	base64.StdEncoding.EncodeToString(p1.BytesMontgomery()))
 }
 
-func findPublicKey(s *edwards25519.Scalar, check func(p []byte) bool) (*edwards25519.Scalar, *edwards25519.Point, int) {
+func findPublicKey(check func(p []byte) bool) (*edwards25519.Scalar, *edwards25519.Point, int) {
 	// set s to a randomly-selected scalar, clamped as usual
 	// set scalar_offset to 8 (i.e. the Ed25519 group's cofactor)
 	// set p to scalarmult(s, BASEPOINT)
@@ -79,12 +48,24 @@ func findPublicKey(s *edwards25519.Scalar, check func(p []byte) bool) (*edwards2
 	// If p passes the check, print the result and start over again from initialization
 	// else, set s = s + scalar_offset and p = p + point_offset
 	// repeat
+	key := make([]byte, 32)
+	if _, err := io.ReadFull(rand.Reader, key); err != nil {
+		panic(err)
+	}
+
+	s, err := edwards25519.NewScalar().SetBytesWithClamping(key)
+	if err != nil {
+		panic(err)
+	}
+
 	p := new(edwards25519.Point).ScalarBaseMult(s)
+
 	i := 0
 	for ; !check(p.BytesMontgomery()); i++ {
 		s.Add(s, scalarOffset)
 		p.Add(p, pointOffset)
 	}
+
 	return s, p, i
 }
 

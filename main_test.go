@@ -3,10 +3,7 @@ package main
 import (
 	"crypto/ecdh"
 	"crypto/rand"
-	"io"
 	"testing"
-
-	"filippo.io/edwards25519"
 )
 
 func BenchmarkGenerateKey(b *testing.B) {
@@ -17,20 +14,10 @@ func BenchmarkGenerateKey(b *testing.B) {
 }
 
 func BenchmarkFindPublicKey(b *testing.B) {
-	key := make([]byte, 32)
-	if _, err := io.ReadFull(rand.Reader, key); err != nil {
-		b.Fatal(err)
-	}
-
-	s0, err := edwards25519.NewScalar().SetBytesWithClamping(key)
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	i := 0
-	findPublicKey(s0, func(p []byte) bool {
+	i := b.N
+	findPublicKey(func(p []byte) bool {
 		_ = p[0] + p[1] + p[2]
-		i++
-		return i == b.N
+		i--
+		return i == 0
 	})
 }
