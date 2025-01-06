@@ -23,7 +23,7 @@ var (
 
 func main() {
 	check := func(p []byte) bool {
-		// Search for 2025 prefix:
+		// Search for "2025" prefix:
 		// $ echo 2025 | base64 -d | hexdump -C
 		// 00000000  db 4d b9                                          |.M.|
 		// 00000003
@@ -48,12 +48,12 @@ func findPublicKey(check func(p []byte) bool) (*edwards25519.Scalar, *edwards255
 	// If p passes the check, print the result and start over again from initialization
 	// else, set s = s + scalar_offset and p = p + point_offset
 	// repeat
-	key := make([]byte, 32)
-	if _, err := io.ReadFull(rand.Reader, key); err != nil {
+	var key [32]byte
+	if _, err := io.ReadFull(rand.Reader, key[:]); err != nil {
 		panic(err)
 	}
 
-	s, err := edwards25519.NewScalar().SetBytesWithClamping(key)
+	s, err := edwards25519.NewScalar().SetBytesWithClamping(key[:])
 	if err != nil {
 		panic(err)
 	}
@@ -93,7 +93,7 @@ func scalarToKeyBytes(s *edwards25519.Scalar) []byte {
 
 	lowBits := s.Bytes()[0] & 0b111
 	// Solve (lowBits + k*5) % 8 == 0 for k:
-	//k := [8]byte{0, 0, 6, 0, 4, 7, 0, 5}[lowBits]
+	// k := [8]byte{0, 0, 6, 0, 4, 7, 0, 5}[lowBits]
 	k := [8]byte{0, 3, 6, 1, 4, 7, 2, 5}[lowBits]
 	if k < 4 {
 		panic("invalid scalar first byte (lowBits)")
