@@ -3,6 +3,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/base64"
@@ -26,12 +27,7 @@ var (
 
 func main() {
 	check := func(p *edwards25519.Point) bool {
-		pp := p.BytesMontgomery()
-		// Search for "2025" prefix:
-		// $ echo 2025 | base64 -d | hexdump -C
-		// 00000000  db 4d b9                                          |.M.|
-		// 00000003
-		return pp[0] == 0xdb && pp[1] == 0x4d && pp[2] == 0xb9
+		return hasBase64Prefix(p, []byte("2025"))
 	}
 	s, p, n := findPublicKeyParallel(context.TODO(), runtime.NumCPU(), check)
 
@@ -160,4 +156,10 @@ func decimalToLittleEndianBytes(d string) []byte {
 		b[i], b[j] = b[j], b[i]
 	}
 	return b
+}
+
+func hasBase64Prefix(p *edwards25519.Point, prefix []byte) bool {
+	var dst [44]byte
+	base64.StdEncoding.Encode(dst[:], p.BytesMontgomery())
+	return bytes.HasPrefix(dst[:], prefix)
 }

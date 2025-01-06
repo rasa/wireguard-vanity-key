@@ -22,9 +22,9 @@ func BenchmarkFindPublicKey(b *testing.B) {
 	i := b.N
 
 	findPublicKey(context.Background(), func(p *edwards25519.Point) bool {
-		pp := p.BytesMontgomery()
+		match := hasBase64Prefix(p, []byte("GoodLuckWithThisPrefix"))
 		i--
-		return i == 0 || len(pp) == 0
+		return i == 0 || match
 	})
 }
 
@@ -33,7 +33,7 @@ func BenchmarkFindPublicKeyParallel(b *testing.B) {
 	i.Store(int64(b.N))
 
 	findPublicKeyParallel(context.Background(), runtime.NumCPU(), func(p *edwards25519.Point) bool {
-		pp := p.BytesMontgomery()
-		return i.Add(-1) <= 0 || len(pp) == 0
+		match := hasBase64Prefix(p, []byte("GoodLuckWithThisPrefix"))
+		return i.Add(-1) <= 0 || match
 	})
 }
