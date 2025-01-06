@@ -35,13 +35,13 @@ func main() {
 	prefix := flag.String("prefix", "AY/", "prefix of base64-encoded public key")
 	flag.Parse()
 
-	s, p := newPair()
+	s0, p0 := newPair()
 
 	test := func(p *edwards25519.Point) bool {
 		return hasBase64Prefix(p, []byte(*prefix))
 	}
-	p, n, attempts := findPointParallel(context.Background(), runtime.NumCPU(), p, test)
-	s = adjustScalar(s, n)
+	p, n, attempts := findPointParallel(context.Background(), runtime.NumCPU(), p0, test)
+	s := adjustScalar(s0, n)
 
 	fmt.Printf("%-44s %-44s %-10s %s\n", "private", "public", "attempts", "duration")
 	fmt.Printf("%s %s %-10d %s\n",
