@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"math/big"
@@ -39,6 +40,22 @@ func main() {
 		base64.StdEncoding.EncodeToString(scalarToKeyBytes(s)),
 		base64.StdEncoding.EncodeToString(p.BytesMontgomery()),
 		n, time.Now().Sub(start))
+}
+
+func newPair() (*edwards25519.Scalar, *edwards25519.Point) {
+	var key [32]byte
+	if _, err := io.ReadFull(rand.Reader, key[:]); err != nil {
+		panic(err)
+	}
+
+	s, err := edwards25519.NewScalar().SetBytesWithClamping(key[:])
+	if err != nil {
+		panic(err)
+	}
+
+	p := new(edwards25519.Point).ScalarBaseMult(s)
+
+	return s, p
 }
 
 func findPublicKeyParallel(ctx context.Context, workers int, check func(p *edwards25519.Point) bool) (*edwards25519.Scalar, *edwards25519.Point, int64) {
@@ -76,17 +93,7 @@ func findPublicKey(ctx context.Context, check func(p *edwards25519.Point) bool) 
 	// If p passes the check, print the result and start over again from initialization
 	// else, set s = s + scalar_offset and p = p + point_offset
 	// repeat
-	var key [32]byte
-	if _, err := io.ReadFull(rand.Reader, key[:]); err != nil {
-		panic(err)
-	}
-
-	s, err := edwards25519.NewScalar().SetBytesWithClamping(key[:])
-	if err != nil {
-		panic(err)
-	}
-
-	p := new(edwards25519.Point).ScalarBaseMult(s)
+	s, p := newPair()
 
 	var i int64
 	for ; !check(p); i++ {
@@ -99,6 +106,25 @@ func findPublicKey(ctx context.Context, check func(p *edwards25519.Point) bool) 
 	}
 
 	return s, p, i
+}
+
+func findPoint(ctx context.Context, p *edwards25519.Point, check func(p *edwards25519.Point) bool) (*edwards25519.Point, uint64) {
+	var i uint64
+	for ; !check(p); i++ {
+		select {
+		case <-ctx.Done():
+			return nil, i
+		default:
+			p.Add(p, pointOffset)
+		}
+	}
+	return p, i
+}
+
+func adjustScalar(s *edwards25519.Scalar, n uint64) *edwards25519.Scalar {
+	var nb [8]byte
+	binary.LittleEndian.PutUint64(nb[:], n)
+	return edwards25519.NewScalar().MultiplyAdd(scalarOffset, scalarFromBytes(nb[:]...), s)
 }
 
 func scalarToKeyBytes(s *edwards25519.Scalar) []byte {

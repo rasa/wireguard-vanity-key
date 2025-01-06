@@ -37,3 +37,15 @@ func BenchmarkFindPublicKeyParallel(b *testing.B) {
 		return i.Add(-1) <= 0 || match
 	})
 }
+
+func BenchmarkFindPoint(b *testing.B) {
+	_, p := newPair()
+
+	i := b.N
+
+	findPoint(context.Background(), p, func(p *edwards25519.Point) bool {
+		match := hasBase64Prefix(p, []byte("GoodLuckWithThisPrefix"))
+		i--
+		return i == 0 || match
+	})
+}
