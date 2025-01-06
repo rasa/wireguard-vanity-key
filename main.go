@@ -30,10 +30,10 @@ var (
 func main() {
 	start := time.Now()
 
-	check := func(p *edwards25519.Point) bool {
+	test := func(p *edwards25519.Point) bool {
 		return hasBase64Prefix(p, []byte("2025"))
 	}
-	s, p, n := findPublicKeyParallel(context.TODO(), runtime.NumCPU(), check)
+	s, p, n := findPublicKeyParallel(context.TODO(), runtime.NumCPU(), test)
 
 	fmt.Printf("%-44s %-44s %-10s %s\n", "private", "public", "attempts", "duration")
 	fmt.Printf("%s %s %-10d %s\n",
@@ -58,7 +58,7 @@ func newPair() (*edwards25519.Scalar, *edwards25519.Point) {
 	return s, p
 }
 
-func findPublicKeyParallel(ctx context.Context, workers int, check func(p *edwards25519.Point) bool) (*edwards25519.Scalar, *edwards25519.Point, int64) {
+func findPublicKeyParallel(ctx context.Context, workers int, test func(p *edwards25519.Point) bool) (*edwards25519.Scalar, *edwards25519.Point, int64) {
 	var (
 		sr *edwards25519.Scalar
 		pr *edwards25519.Point
@@ -68,7 +68,7 @@ func findPublicKeyParallel(ctx context.Context, workers int, check func(p *edwar
 	g, gtx := errgroup.WithContext(ctx)
 	for range workers {
 		g.Go(func() error {
-			s, p, n := findPublicKey(gtx, check)
+			s, p, n := findPublicKey(gtx, test)
 
 			nr.Add(int64(n))
 			if s != nil {
@@ -83,20 +83,20 @@ func findPublicKeyParallel(ctx context.Context, workers int, check func(p *edwar
 	return sr, pr, nr.Load()
 }
 
-func findPublicKey(ctx context.Context, check func(p *edwards25519.Point) bool) (*edwards25519.Scalar, *edwards25519.Point, int64) {
+func findPublicKey(ctx context.Context, test func(p *edwards25519.Point) bool) (*edwards25519.Scalar, *edwards25519.Point, int64) {
 	// set s to a randomly-selected scalar, clamped as usual
 	// set scalar_offset to 8 (i.e. the Ed25519 group's cofactor)
 	// set p to scalarmult(s, BASEPOINT)
 	// set point_offset to scalarmult(scalar_offset, BASEPOINT)
 	//
 	// Then each step of the loop looks like:
-	// If p passes the check, print the result and start over again from initialization
+	// If p passes the test, print the result and start over again from initialization
 	// else, set s = s + scalar_offset and p = p + point_offset
 	// repeat
 	s, p := newPair()
 
 	var i int64
-	for ; !check(p); i++ {
+	for ; !test(p); i++ {
 		if i%(1<<16) == 0 && ctx.Err() != nil {
 			return nil, nil, i
 		}
@@ -108,9 +108,9 @@ func findPublicKey(ctx context.Context, check func(p *edwards25519.Point) bool) 
 	return s, p, i
 }
 
-func findPoint(ctx context.Context, p *edwards25519.Point, check func(p *edwards25519.Point) bool) (*edwards25519.Point, uint64) {
+func findPoint(ctx context.Context, p *edwards25519.Point, test func(p *edwards25519.Point) bool) (*edwards25519.Point, uint64) {
 	var i uint64
-	for ; !check(p); i++ {
+	for ; !test(p); i++ {
 		select {
 		case <-ctx.Done():
 			return nil, i
