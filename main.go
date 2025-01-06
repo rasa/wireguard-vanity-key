@@ -10,6 +10,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"math"
 	"math/big"
 	"runtime"
 	"sync/atomic"
@@ -30,16 +31,19 @@ var (
 func main() {
 	start := time.Now()
 
+	s, p := newPair()
+
 	test := func(p *edwards25519.Point) bool {
-		return hasBase64Prefix(p, []byte("2025"))
+		return hasBase64Prefix(p, []byte("////"))
 	}
-	s, p, n := findPublicKeyParallel(context.TODO(), runtime.NumCPU(), test)
+	p, n, attempts := findPointParallel(context.Background(), runtime.NumCPU(), p, test)
+	s = adjustScalar(s, n)
 
 	fmt.Printf("%-44s %-44s %-10s %s\n", "private", "public", "attempts", "duration")
 	fmt.Printf("%s %s %-10d %s\n",
 		base64.StdEncoding.EncodeToString(scalarToKeyBytes(s)),
 		base64.StdEncoding.EncodeToString(p.BytesMontgomery()),
-		n, time.Now().Sub(start))
+		attempts, time.Now().Sub(start))
 }
 
 func newPair() (*edwards25519.Scalar, *edwards25519.Point) {
@@ -108,8 +112,37 @@ func findPublicKey(ctx context.Context, test func(p *edwards25519.Point) bool) (
 	return s, p, i
 }
 
-func findPoint(ctx context.Context, p *edwards25519.Point, test func(p *edwards25519.Point) bool) (*edwards25519.Point, uint64) {
-	var i uint64
+func findPointParallel(ctx context.Context, workers int, p0 *edwards25519.Point, test func(p *edwards25519.Point) bool) (*edwards25519.Point, uint64, uint64) {
+	var (
+		pr       *edwards25519.Point
+		nr       uint64
+		attempts atomic.Uint64
+	)
+
+	g, gtx := errgroup.WithContext(ctx)
+	for range workers {
+		g.Go(func() error {
+			skip := randUint64()
+			p, n := findPoint(gtx, p0, skip, test)
+
+			attempts.Add(n - skip)
+			if p != nil {
+				pr, nr = p, n
+				return fmt.Errorf("found")
+			}
+			return gtx.Err()
+		})
+	}
+	g.Wait()
+
+	return pr, nr, attempts.Load()
+}
+
+func findPoint(ctx context.Context, p0 *edwards25519.Point, skip uint64, test func(p *edwards25519.Point) bool) (*edwards25519.Point, uint64) {
+	skipOffset := new(edwards25519.Point).ScalarMult(scalarFromUint64(skip), pointOffset)
+	p := new(edwards25519.Point).Add(p0, skipOffset)
+
+	i := skip
 	for ; !test(p); i++ {
 		select {
 		case <-ctx.Done():
@@ -122,9 +155,7 @@ func findPoint(ctx context.Context, p *edwards25519.Point, test func(p *edwards2
 }
 
 func adjustScalar(s *edwards25519.Scalar, n uint64) *edwards25519.Scalar {
-	var nb [8]byte
-	binary.LittleEndian.PutUint64(nb[:], n)
-	return edwards25519.NewScalar().MultiplyAdd(scalarOffset, scalarFromBytes(nb[:]...), s)
+	return edwards25519.NewScalar().MultiplyAdd(scalarOffset, scalarFromUint64(n), s)
 }
 
 func scalarToKeyBytes(s *edwards25519.Scalar) []byte {
@@ -174,6 +205,12 @@ func scalarFromBytes(x ...byte) *edwards25519.Scalar {
 	return xs
 }
 
+func scalarFromUint64(n uint64) *edwards25519.Scalar {
+	var nb [8]byte
+	binary.LittleEndian.PutUint64(nb[:], n)
+	return scalarFromBytes(nb[:]...)
+}
+
 func decimalToLittleEndianBytes(d string) []byte {
 	i, ok := new(big.Int).SetString(d, 10)
 	if !ok {
@@ -191,4 +228,12 @@ func hasBase64Prefix(p *edwards25519.Point, prefix []byte) bool {
 	var dst [44]byte
 	base64.StdEncoding.Encode(dst[:], p.BytesMontgomery())
 	return bytes.HasPrefix(dst[:], prefix)
+}
+
+func randUint64() uint64 {
+	r, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
+	if err != nil {
+		panic(err)
+	}
+	return r.Uint64()
 }
