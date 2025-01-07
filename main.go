@@ -138,7 +138,7 @@ func scalarToKeyBytes(s *edwards25519.Scalar) []byte {
 	// Solve (lowBits + k*5) % 8 == 0 for k:
 	// k := [8]byte{0, 0, 6, 0, 4, 7, 0, 5}[lowBits]
 	k := [8]byte{0, 3, 6, 1, 4, 7, 2, 5}[lowBits]
-	if k < 4 { // TODO: prove k is one of 4, 5, 6, 7
+	if k < 4 { // TODO: why k is mostly one of 4, 5, 6, 7 when scalarOffset is Ed25519 group's cofactor?
 		panic("invalid scalar first byte (lowBits)")
 	}
 
