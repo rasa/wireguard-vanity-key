@@ -23,7 +23,7 @@ import (
 
 var (
 	// l = 2^252 + 27742317777372353535851937790883648493 == 2^252 + smallScalar
-	smallScalar = scalarFromBytes(decimalToLittleEndianBytes("27742317777372353535851937790883648493")...)
+	smallScalar = scalarFromBytes(decimalToBytes("27742317777372353535851937790883648493")...)
 	// Ed25519 group's cofactor
 	scalarOffset = scalarFromBytes(8)
 	pointOffset  = new(edwards25519.Point).ScalarBaseMult(scalarOffset)
@@ -165,7 +165,7 @@ func scalarFromUint64(n uint64) *edwards25519.Scalar {
 	return scalarFromBytes(nb[:]...)
 }
 
-func decimalToLittleEndianBytes(d string) []byte {
+func decimalToBytes(d string) []byte {
 	i, ok := new(big.Int).SetString(d, 10)
 	if !ok {
 		panic("invalid decimal string " + d)
