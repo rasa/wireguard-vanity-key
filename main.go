@@ -14,11 +14,11 @@ import (
 	"math"
 	"math/big"
 	"runtime"
+	"sync"
 	"sync/atomic"
 	"time"
 
 	"filippo.io/edwards25519"
-	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -67,45 +67,54 @@ func newPair() (*edwards25519.Scalar, *edwards25519.Point) {
 }
 
 func findPointParallel(ctx context.Context, workers int, p0 *edwards25519.Point, test func(p *edwards25519.Point) bool) (*edwards25519.Point, uint64, uint64) {
-	var (
-		pr       *edwards25519.Point
-		nr       uint64
-		attempts atomic.Uint64
-	)
+	type point struct {
+		p *edwards25519.Point
+		n uint64
+	}
 
-	g, gtx := errgroup.WithContext(ctx)
+	result := make(chan point, workers)
+	var attempts atomic.Uint64
+
+	gctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	var wg sync.WaitGroup
+	wg.Add(workers)
 	for range workers {
-		g.Go(func() error {
+		go func() {
+			defer wg.Done()
+
 			skip := randUint64()
-			p, n := findPoint(gtx, p0, skip, test)
+			p, n := findPoint(gctx, p0, skip, test)
 
 			attempts.Add(n - skip)
 			if p != nil {
-				pr, nr = p, n
-				return fmt.Errorf("found")
+				result <- point{p, n}
+				cancel()
 			}
-			return gtx.Err()
-		})
+		}()
 	}
-	g.Wait()
 
-	return pr, nr, attempts.Load()
+	r := <-result
+	wg.Wait()
+
+	return r.p, r.n, attempts.Load()
 }
 
 func findPoint(ctx context.Context, p0 *edwards25519.Point, skip uint64, test func(p *edwards25519.Point) bool) (*edwards25519.Point, uint64) {
 	skipOffset := new(edwards25519.Point).ScalarMult(scalarFromUint64(skip), pointOffset)
 	p := new(edwards25519.Point).Add(p0, skipOffset)
 
-	i := skip
-	for ; !test(p); i++ {
+	n := skip
+	for ; !test(p); n++ {
 		select {
 		case <-ctx.Done():
-			return nil, i
+			return nil, n
 		default:
 			p.Add(p, pointOffset)
 		}
 	}
-	return p, i
+	return p, n
 }
 
 func adjustScalar(s *edwards25519.Scalar, n uint64) *edwards25519.Scalar {
