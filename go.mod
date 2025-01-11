@@ -1,4 +1,4 @@
-module github.com/AlexanderYastrebov/wireguard-vanity
+module github.com/AlexanderYastrebov/wireguard-vanity-key
 
 go 1.23.2
 

@@ -1,4 +1,4 @@
-# wireguard-vanity
+# wireguard-vanity-key
 
 Inspired by [wireguard-vanity-address "faster algorithm"](https://github.com/warner/wireguard-vanity-address/pull/15),
 this tool searches for a [WireGuard](https://www.wireguard.com/) Curve25519 keypair
