@@ -18,7 +18,7 @@ $ echo IPmNWKPaN24CaVoC8IReswkgAzOapxIn2ZpbriGUVVM= | wg pubkey
 
 ## Benchmark
 
-The tool check ~700'000 keys per second on a test machine:
+The tool checks ~700'000 keys per second on a test machine:
 
 ```console
 $ go test . -run=NONE -bench=BenchmarkFindPointParallel -benchmem -count=10
@@ -39,3 +39,11 @@ BenchmarkFindPointParallel-8      653674              1671 ns/op               0
 PASS
 ok      github.com/AlexanderYastrebov/wireguard-vanity-key      11.387s
 ```
+
+## Similar projects
+
+* [wireguard-vanity-address](https://github.com/warner/wireguard-vanity-address)
+* [wireguard-vanity-keygen](https://github.com/axllent/wireguard-vanity-keygen)
+* [Wireguard-Vanity-Key-Searcher](https://github.com/volleybus/Wireguard-Vanity-Key-Searcher)
+* [wgmine](https://github.com/thatsed/wgmine)
+* [Vanity](https://github.com/samuel-lucas6/Vanity)
