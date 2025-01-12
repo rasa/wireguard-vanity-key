@@ -11,7 +11,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"math"
 	"math/big"
 	"runtime"
 	"sync"
@@ -194,9 +193,10 @@ func hasBase64Prefix(p *edwards25519.Point, prefix []byte) bool {
 }
 
 func randUint64() uint64 {
-	r, err := rand.Int(rand.Reader, new(big.Int).SetUint64(math.MaxUint64))
+	var num uint64
+	err := binary.Read(rand.Reader, binary.LittleEndian, &num)
 	if err != nil {
 		panic(err)
 	}
-	return r.Uint64()
+	return num
 }
