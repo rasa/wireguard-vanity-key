@@ -194,7 +194,7 @@ func hasBase64Prefix(p *edwards25519.Point, prefix []byte) bool {
 
 func randUint64() uint64 {
 	var num uint64
-	err := binary.Read(rand.Reader, binary.LittleEndian, &num)
+	err := binary.Read(rand.Reader, binary.NativeEndian, &num)
 	if err != nil {
 		panic(err)
 	}
