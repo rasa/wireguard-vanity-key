@@ -1,2 +1,2 @@
-filippo.io/edwards25519 v1.1.0 h1:FNf4tywRC1HmFuKW5xopWpigGjJKiJSV0Cqo0cJWDaA=
-filippo.io/edwards25519 v1.1.0/go.mod h1:BxyFTGdWcka3PhytdK4V28tE5sGfRvvvRV7EaN4VDT4=
+filippo.io/edwards25519 v1.1.1-0.20250126203914-62e99b0d908f h1:n6ugun4wmKwY6aEMhhGPJS4QX+mQiJJq8ToRgyiEaOg=
+filippo.io/edwards25519 v1.1.1-0.20250126203914-62e99b0d908f/go.mod h1:BxyFTGdWcka3PhytdK4V28tE5sGfRvvvRV7EaN4VDT4=
