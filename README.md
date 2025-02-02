@@ -18,7 +18,7 @@ $ echo IPmNWKPaN24CaVoC8IReswkgAzOapxIn2ZpbriGUVVM= | wg pubkey
 
 ## Benchmark
 
-The tool checks ~1'300'000 keys per second on a test machine:
+The tool checks ~1'500'000 keys per second on a test machine:
 
 ```console
 $ go test . -run=NONE -bench=BenchmarkFindPointParallel -benchmem -count=10
@@ -26,18 +26,18 @@ goos: linux
 goarch: amd64
 pkg: github.com/AlexanderYastrebov/wireguard-vanity-key
 cpu: Intel(R) Core(TM) i5-8350U CPU @ 1.70GHz
-BenchmarkFindPointParallel-8     1411388               839.2 ns/op             0 B/op          0 allocs/op
-BenchmarkFindPointParallel-8     1413418               852.4 ns/op             0 B/op          0 allocs/op
-BenchmarkFindPointParallel-8     1385917               879.6 ns/op             0 B/op          0 allocs/op
-BenchmarkFindPointParallel-8     1350654               889.4 ns/op             0 B/op          0 allocs/op
-BenchmarkFindPointParallel-8     1328437               906.0 ns/op             0 B/op          0 allocs/op
-BenchmarkFindPointParallel-8     1307710               916.2 ns/op             0 B/op          0 allocs/op
-BenchmarkFindPointParallel-8     1298641               925.0 ns/op             0 B/op          0 allocs/op
-BenchmarkFindPointParallel-8     1262624               936.2 ns/op             0 B/op          0 allocs/op
-BenchmarkFindPointParallel-8     1278962               937.8 ns/op             0 B/op          0 allocs/op
-BenchmarkFindPointParallel-8     1272621               951.1 ns/op             0 B/op          0 allocs/op
+BenchmarkFindPointParallel-8     1610152               732.6 ns/op             0 B/op          0 allocs/op
+BenchmarkFindPointParallel-8     1562487               728.7 ns/op             0 B/op          0 allocs/op
+BenchmarkFindPointParallel-8     1645317               729.5 ns/op             0 B/op          0 allocs/op
+BenchmarkFindPointParallel-8     1610070               731.9 ns/op             0 B/op          0 allocs/op
+BenchmarkFindPointParallel-8     1534819               727.2 ns/op             0 B/op          0 allocs/op
+BenchmarkFindPointParallel-8     1635752               739.1 ns/op             0 B/op          0 allocs/op
+BenchmarkFindPointParallel-8     1621570               761.5 ns/op             0 B/op          0 allocs/op
+BenchmarkFindPointParallel-8     1591744               755.0 ns/op             0 B/op          0 allocs/op
+BenchmarkFindPointParallel-8     1557376               759.0 ns/op             0 B/op          0 allocs/op
+BenchmarkFindPointParallel-8     1564669               876.1 ns/op             0 B/op          0 allocs/op
 PASS
-ok      github.com/AlexanderYastrebov/wireguard-vanity-key      21.154s
+ok      github.com/AlexanderYastrebov/wireguard-vanity-key      20.799s
 ```
 
 ## Similar projects

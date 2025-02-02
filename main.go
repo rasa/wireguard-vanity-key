@@ -17,7 +17,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"filippo.io/edwards25519"
+	"github.com/oasisprotocol/curve25519-voi/curve"
+	"github.com/oasisprotocol/curve25519-voi/curve/scalar"
 )
 
 var (
@@ -25,7 +26,7 @@ var (
 	smallScalar = scalarFromBytes(decimalToBytes("27742317777372353535851937790883648493")...)
 	// Ed25519 group's cofactor
 	scalarOffset = scalarFromBytes(8)
-	pointOffset  = new(edwards25519.Point).ScalarBaseMult(scalarOffset)
+	pointOffset  = new(curve.EdwardsPoint).MulBasepoint(curve.ED25519_BASEPOINT_TABLE, scalarOffset)
 )
 
 func main() {
@@ -36,7 +37,7 @@ func main() {
 
 	s0, p0 := newPair()
 
-	test := func(p *edwards25519.Point) bool {
+	test := func(p *curve.EdwardsPoint) bool {
 		return hasBase64Prefix(p, []byte(*prefix))
 	}
 	p, n, attempts := findPointParallel(context.Background(), runtime.NumCPU(), p0, test)
@@ -45,29 +46,35 @@ func main() {
 	fmt.Printf("%-44s %-44s %-10s %s\n", "private", "public", "attempts", "duration")
 	fmt.Printf("%s %s %-10d %s\n",
 		base64.StdEncoding.EncodeToString(scalarToKeyBytes(s)),
-		base64.StdEncoding.EncodeToString(p.BytesMontgomery()),
+		base64.StdEncoding.EncodeToString(bytesMontgomery(p)),
 		attempts, time.Now().Sub(start))
 }
 
-func newPair() (*edwards25519.Scalar, *edwards25519.Point) {
+func newPair() (*scalar.Scalar, *curve.EdwardsPoint) {
 	var key [32]byte
 	if _, err := io.ReadFull(rand.Reader, key[:]); err != nil {
 		panic(err)
 	}
 
-	s, err := edwards25519.NewScalar().SetBytesWithClamping(key[:])
+	var wideBytes [64]byte
+	copy(wideBytes[:], key[:])
+	wideBytes[0] &= 248
+	wideBytes[31] &= 63
+	wideBytes[31] |= 64
+
+	s, err := new(scalar.Scalar).SetBytesModOrderWide(wideBytes[:])
 	if err != nil {
 		panic(err)
 	}
 
-	p := new(edwards25519.Point).ScalarBaseMult(s)
+	p := new(curve.EdwardsPoint).MulBasepoint(curve.ED25519_BASEPOINT_TABLE, s)
 
 	return s, p
 }
 
-func findPointParallel(ctx context.Context, workers int, p0 *edwards25519.Point, test func(p *edwards25519.Point) bool) (*edwards25519.Point, uint64, uint64) {
+func findPointParallel(ctx context.Context, workers int, p0 *curve.EdwardsPoint, test func(p *curve.EdwardsPoint) bool) (*curve.EdwardsPoint, uint64, uint64) {
 	type point struct {
-		p *edwards25519.Point
+		p *curve.EdwardsPoint
 		n uint64
 	}
 
@@ -100,9 +107,9 @@ func findPointParallel(ctx context.Context, workers int, p0 *edwards25519.Point,
 	return r.p, r.n, attempts.Load()
 }
 
-func findPoint(ctx context.Context, p0 *edwards25519.Point, skip uint64, test func(p *edwards25519.Point) bool) (*edwards25519.Point, uint64) {
-	skipOffset := new(edwards25519.Point).ScalarMult(scalarFromUint64(skip), pointOffset)
-	p := new(edwards25519.Point).Add(p0, skipOffset)
+func findPoint(ctx context.Context, p0 *curve.EdwardsPoint, skip uint64, test func(p *curve.EdwardsPoint) bool) (*curve.EdwardsPoint, uint64) {
+	skipOffset := new(curve.EdwardsPoint).Mul(pointOffset, scalarFromUint64(skip))
+	p := new(curve.EdwardsPoint).Add(p0, skipOffset)
 
 	n := skip
 	for ; !test(p); n++ {
@@ -116,11 +123,12 @@ func findPoint(ctx context.Context, p0 *edwards25519.Point, skip uint64, test fu
 	return p, n
 }
 
-func adjustScalar(s *edwards25519.Scalar, n uint64) *edwards25519.Scalar {
-	return edwards25519.NewScalar().MultiplyAdd(scalarOffset, scalarFromUint64(n), s)
+func adjustScalar(s *scalar.Scalar, n uint64) *scalar.Scalar {
+	m := new(scalar.Scalar).Mul(scalarOffset, scalarFromUint64(n))
+	return m.Add(m, s)
 }
 
-func scalarToKeyBytes(s *edwards25519.Scalar) []byte {
+func scalarToKeyBytes(s *scalar.Scalar) []byte {
 	// We can't use Scalars to add "l" and produce the aliases: any addition
 	// we do on the Scalar will be reduced immediately. But we can add
 	// "small", and then manually adjust the high-end byte, to produce an
@@ -142,7 +150,10 @@ func scalarToKeyBytes(s *edwards25519.Scalar) []byte {
 	// N+4,N+1,N+6,N+3. One of these values might be all zeros. That alias
 	// will survive the low-end clamping unchanged.
 
-	lowBits := s.Bytes()[0] & 0b111
+	var sBytes [32]byte
+	s.ToBytes(sBytes[:])
+
+	lowBits := sBytes[0] & 0b111
 	// Solve (lowBits + k*5) % 8 == 0 for k:
 	// k := [8]byte{0, 0, 6, 0, 4, 7, 0, 5}[lowBits]
 	k := [8]byte{0, 3, 6, 1, 4, 7, 2, 5}[lowBits]
@@ -150,24 +161,28 @@ func scalarToKeyBytes(s *edwards25519.Scalar) []byte {
 		panic("invalid scalar first byte (lowBits)")
 	}
 
-	aliasBytes := edwards25519.NewScalar().MultiplyAdd(smallScalar, scalarFromBytes(k), s).Bytes()
+	m := new(scalar.Scalar).Mul(smallScalar, scalarFromBytes(k))
+	m.Add(m, s)
+
+	aliasBytes := make([]byte, 32)
+	m.ToBytes(aliasBytes)
 	aliasBytes[31] += (k << 4)
 
 	return aliasBytes
 }
 
-func scalarFromBytes(x ...byte) *edwards25519.Scalar {
+func scalarFromBytes(x ...byte) *scalar.Scalar {
 	var xb [64]byte
 	copy(xb[:], x)
 
-	xs, err := edwards25519.NewScalar().SetUniformBytes(xb[:])
+	xs, err := new(scalar.Scalar).SetBytesModOrderWide(xb[:])
 	if err != nil {
 		panic(err)
 	}
 	return xs
 }
 
-func scalarFromUint64(n uint64) *edwards25519.Scalar {
+func scalarFromUint64(n uint64) *scalar.Scalar {
 	var nb [8]byte
 	binary.LittleEndian.PutUint64(nb[:], n)
 	return scalarFromBytes(nb[:]...)
@@ -186,9 +201,9 @@ func decimalToBytes(d string) []byte {
 	return b
 }
 
-func hasBase64Prefix(p *edwards25519.Point, prefix []byte) bool {
+func hasBase64Prefix(p *curve.EdwardsPoint, prefix []byte) bool {
 	var dst [44]byte
-	base64.StdEncoding.Encode(dst[:], p.BytesMontgomery())
+	base64.StdEncoding.Encode(dst[:], bytesMontgomery(p))
 	return bytes.HasPrefix(dst[:], prefix)
 }
 
@@ -199,4 +214,10 @@ func randUint64() uint64 {
 		panic(err)
 	}
 	return num
+}
+
+func bytesMontgomery(p *curve.EdwardsPoint) []byte {
+	var mp curve.MontgomeryPoint
+	mp.SetEdwards(p)
+	return mp[:]
 }
