@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ecdh"
 	"crypto/rand"
+	"io"
 	"runtime"
 	"sync/atomic"
 	"testing"
@@ -11,9 +12,16 @@ import (
 	"github.com/oasisprotocol/curve25519-voi/curve"
 )
 
-func BenchmarkGenerateKey(b *testing.B) {
+func BenchmarkNewPrivateKey(b *testing.B) {
+	var key [32]byte
+	_, err := io.ReadFull(rand.Reader, key[:])
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.ResetTimer()
+
 	for range b.N {
-		priv, _ := ecdh.X25519().GenerateKey(rand.Reader)
+		priv, _ := ecdh.X25519().NewPrivateKey(key[:])
 		_ = priv.PublicKey().Bytes()
 	}
 }
