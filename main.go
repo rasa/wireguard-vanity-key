@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"os"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -33,21 +34,40 @@ func main() {
 	start := time.Now()
 
 	prefix := flag.String("prefix", "AY/", "prefix of base64-encoded public key")
+	timeout := flag.Duration("timeout", 0, "stop after specified timeout")
 	flag.Parse()
 
 	s0, p0 := newPair()
 
+	ctx := context.Background()
+	if *timeout != 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, *timeout)
+		defer cancel()
+	}
+
 	test := func(p *curve.EdwardsPoint) bool {
 		return hasBase64Prefix(p, []byte(*prefix))
 	}
-	p, n, attempts := findPointParallel(context.Background(), runtime.NumCPU(), p0, test)
-	s := adjustScalar(s0, n)
 
-	fmt.Printf("%-44s %-44s %-10s %s\n", "private", "public", "attempts", "duration")
-	fmt.Printf("%s %s %-10d %s\n",
-		base64.StdEncoding.EncodeToString(scalarToKeyBytes(s)),
-		base64.StdEncoding.EncodeToString(bytesMontgomery(p)),
-		attempts, time.Now().Sub(start))
+	p, n, attempts := findPointParallel(ctx, runtime.NumCPU(), p0, test)
+
+	private := "-"
+	public := *prefix + "..."
+	if p != nil {
+		s := adjustScalar(s0, n)
+		private = base64.StdEncoding.EncodeToString(scalarToKeyBytes(s))
+		public = base64.StdEncoding.EncodeToString(bytesMontgomery(p))
+	}
+
+	duration := time.Now().Sub(start)
+
+	fmt.Printf("%-44s %-44s %-10s %-10s %s\n", "private", "public", "attempts", "duration", "attempts/s")
+	fmt.Printf("%-44s %-44s %-10d %-10s %d\n", private, public, attempts, duration.Round(time.Second), time.Duration(attempts)*(time.Second)/duration)
+
+	if p == nil {
+		os.Exit(1)
+	}
 }
 
 func newPair() (*scalar.Scalar, *curve.EdwardsPoint) {
@@ -100,11 +120,14 @@ func findPointParallel(ctx context.Context, workers int, p0 *curve.EdwardsPoint,
 			}
 		}()
 	}
-
-	r := <-result
 	wg.Wait()
 
-	return r.p, r.n, attempts.Load()
+	select {
+	case r := <-result:
+		return r.p, r.n, attempts.Load()
+	case <-ctx.Done():
+		return nil, 0, attempts.Load()
+	}
 }
 
 func findPoint(ctx context.Context, p0 *curve.EdwardsPoint, skip uint64, test func(p *curve.EdwardsPoint) bool) (*curve.EdwardsPoint, uint64) {
