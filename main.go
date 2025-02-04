@@ -13,9 +13,11 @@ import (
 	"io"
 	"math/big"
 	"os"
+	"os/signal"
 	"runtime"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/oasisprotocol/curve25519-voi/curve"
@@ -39,9 +41,10 @@ func main() {
 
 	s0, p0 := newPair()
 
-	ctx := context.Background()
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
+
 	if *timeout != 0 {
-		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, *timeout)
 		defer cancel()
 	}
