@@ -6,27 +6,27 @@ with a base64-encoded public key that has a specified prefix.
 
 ## Example
 
-Run the tool from the source repository:
+Install the tool locally and run:
 ```console
-$ go run . --prefix=2025
+$ go install github.com/AlexanderYastrebov/wireguard-vanity-key@latest
+$ wireguard-vanity-key --prefix=2025
 private                                      public                                       attempts   duration   attempts/s
-YEStzudoDL6fU0dnuS8OL7EjjoL4MbynRxntQJiLQXU= 2025C9iR7oZt/tJTg0nLt4diZfmdkkBR+2j9DnXC7jc= 11833889   1s         9335684
+4JFWFevraBg5yLD2rCFzGMpbKZOC3BV5rNom+Um7EGg= 2025Q6KcDb+v/nj2/ErYNThiApp8jTgeHzDzIbB5DCI= 3675109    0s         9209444
 
 $ # verify
-$ echo YEStzudoDL6fU0dnuS8OL7EjjoL4MbynRxntQJiLQXU= | wg pubkey
-2025C9iR7oZt/tJTg0nLt4diZfmdkkBR+2j9DnXC7jc=
+$ echo 4JFWFevraBg5yLD2rCFzGMpbKZOC3BV5rNom+Um7EGg= | wg pubkey 
+2025Q6KcDb+v/nj2/ErYNThiApp8jTgeHzDzIbB5DCI=
+```
+
+or run the tool from the source repository:
+```console
+$ go run . --prefix=2025
 ```
 
 or use Docker image:
 ```console
 $ docker pull ghcr.io/alexanderyastrebov/wireguard-vanity-key:latest
 $ docker run ghcr.io/alexanderyastrebov/wireguard-vanity-key:latest --prefix=2025
-private                                      public                                       attempts   duration   attempts/s
-KCMxR8XSy7rnIkm6jdCbjh7iWjLSKG6/Jf1VmZ2cj0Q= 2025E9Aze99TIlhSchsOOZZmgjIuReX0iu+l9gWsEBM= 2071199    0s         9788246
-
-$ # verify
-$ echo KCMxR8XSy7rnIkm6jdCbjh7iWjLSKG6/Jf1VmZ2cj0Q= | wg pubkey
-2025E9Aze99TIlhSchsOOZZmgjIuReX0iu+l9gWsEBM=
 ```
 
 ## Benchmark
