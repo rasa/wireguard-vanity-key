@@ -66,7 +66,7 @@ func main() {
 	duration := time.Since(start)
 
 	fmt.Printf("%-44s %-44s %-10s %-10s %s\n", "private", "public", "attempts", "duration", "attempts/s")
-	fmt.Printf("%-44s %-44s %-10d %-10s %d\n", private, public, attempts, duration.Round(time.Second), time.Duration(attempts)*(time.Second)/duration)
+	fmt.Printf("%-44s %-44s %-10d %-10s %.0f\n", private, public, attempts, duration.Round(time.Second), float64(attempts)/duration.Seconds())
 
 	if p == nil {
 		os.Exit(1)
