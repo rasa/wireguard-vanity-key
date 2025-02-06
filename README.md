@@ -19,6 +19,7 @@ $ echo YEStzudoDL6fU0dnuS8OL7EjjoL4MbynRxntQJiLQXU= | wg pubkey
 
 or use Docker image:
 ```console
+$ docker pull ghcr.io/alexanderyastrebov/wireguard-vanity-key:latest
 $ docker run ghcr.io/alexanderyastrebov/wireguard-vanity-key:latest --prefix=2025
 private                                      public                                       attempts   duration   attempts/s
 KCMxR8XSy7rnIkm6jdCbjh7iWjLSKG6/Jf1VmZ2cj0Q= 2025E9Aze99TIlhSchsOOZZmgjIuReX0iu+l9gWsEBM= 2071199    0s         9788246
