@@ -6,14 +6,26 @@ with a base64-encoded public key that has a specified prefix.
 
 ## Example
 
+Run the tool from the source repository:
 ```console
 $ go run . --prefix=2025
-private                                      public                                       attempts   duration
-IPmNWKPaN24CaVoC8IReswkgAzOapxIn2ZpbriGUVVM= 2025tLFHEKbyf2Jpsfzv83/cdh7vM1P5EapkNRXTVGE= 11111672   27.396459241s
+private                                      public                                       attempts   duration   attempts/s
+YEStzudoDL6fU0dnuS8OL7EjjoL4MbynRxntQJiLQXU= 2025C9iR7oZt/tJTg0nLt4diZfmdkkBR+2j9DnXC7jc= 11833889   1s         9335684
 
-# verify
-$ echo IPmNWKPaN24CaVoC8IReswkgAzOapxIn2ZpbriGUVVM= | wg pubkey 
-2025tLFHEKbyf2Jpsfzv83/cdh7vM1P5EapkNRXTVGE=
+$ # verify
+$ echo YEStzudoDL6fU0dnuS8OL7EjjoL4MbynRxntQJiLQXU= | wg pubkey
+2025C9iR7oZt/tJTg0nLt4diZfmdkkBR+2j9DnXC7jc=
+```
+
+or use Docker image:
+```console
+$ docker run ghcr.io/alexanderyastrebov/wireguard-vanity-key:latest --prefix=2025
+private                                      public                                       attempts   duration   attempts/s
+KCMxR8XSy7rnIkm6jdCbjh7iWjLSKG6/Jf1VmZ2cj0Q= 2025E9Aze99TIlhSchsOOZZmgjIuReX0iu+l9gWsEBM= 2071199    0s         9788246
+
+$ # verify
+$ echo KCMxR8XSy7rnIkm6jdCbjh7iWjLSKG6/Jf1VmZ2cj0Q= | wg pubkey
+2025E9Aze99TIlhSchsOOZZmgjIuReX0iu+l9gWsEBM=
 ```
 
 ## Benchmark
