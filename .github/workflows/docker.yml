@@ -26,5 +26,6 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           push: true
+          # https://github.com/AlexanderYastrebov/wireguard-vanity-key/commit/9397d4544ba6daf55ff866dc4fe4d510f54fbda8
           tags: |
-            ghcr.io/${{ github.repository_owner }}/wireguard-vanity-key:latest
+            ghcr.io/${{ github.repository_owner == 'AlexanderYastrebov' && 'alexanderyastrebov' || github.repository_owner }}/wireguard-vanity-key:latest
